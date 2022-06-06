@@ -12,6 +12,7 @@ Tile::Tile(int xCoord, int yCoord) : xCoord(xCoord), yCoord(yCoord) {
     this->left = nullptr;
     this->visited = false;
     this->value = -1;
+    this->checked = false;
 }
 
 Tile::~Tile() {

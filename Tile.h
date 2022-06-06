@@ -21,6 +21,7 @@ public:
     int xCoord;
     int yCoord;
     int value;
+    bool checked;
 };
 
 

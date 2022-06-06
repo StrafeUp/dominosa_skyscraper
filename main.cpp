@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 #include <algorithm>
+#include <set>
 #include "Tile.h"
 
 static const int TASK_HEIGHT = 5;
@@ -12,6 +13,14 @@ static const int TASK_WIDTH = 6;
 static const int TEST_TASK_WIDTH = 6;
 std::map<int, std::vector<int>> stash;
 bool isSecondHalfOfDomino = true;
+bool isSecondHalfOfDominoSolve = true;
+char testExample[TEST_TASK_HEIGHT][TEST_TASK_WIDTH] = {{'0', '0', ' ', '0', '0', '0'},
+                                                       {' ', '0', ' ', ' ', ' ', '0'},
+                                                       {'0', '0', ' ', '0', '0', '0'},
+                                                       {'0', ' ', ' ', ' ', ' ', '0'},
+                                                       {'0', '0', '0', '0', '0', '0'}};
+int visitedTiles = 0;
+Tile ***gameField;
 
 void printInputNumbers(char field[TASK_HEIGHT][TASK_WIDTH]);
 
@@ -28,6 +37,18 @@ void setPossibleNumbersToTiles(Tile ***gameField, std::vector<std::vector<int>> 
 void setAnswerToTheGameField(Tile ***gameField, char answer[TEST_TASK_HEIGHT][TEST_TASK_WIDTH]);
 
 bool startCheck(Tile ***gameField, int startX, int startY);
+
+bool solve(Tile ***gameField, int startX, int startY);
+
+void resetGameField(Tile ***gameField);
+
+std::vector<int> getAllSecondHalvesByFirst(int firstHalf);
+
+int getPositionOfElement(std::vector<int> v, int el);
+
+bool removeDominoFromStash(int prevNumber, int currNum);
+
+void returnDominoToStash(int prevNumber, int currNum);
 
 int main() {
 
@@ -69,6 +90,7 @@ int main() {
                                                     {0, 1, 2, 3, 4, 5, 6},
                                                     {0, 3}};
 
+
     int counter = 0;
     for (int i = 0; i < 4; ++i) {
         for (int j = 0; j <= counter; ++j) {
@@ -77,6 +99,7 @@ int main() {
         counter++;
     }
 
+    //std::set<int> secondHalves = getAllSecondHalvesByFirst(0);
 
 
     //Remove by key and by value -> key (4-6 and 6-4 are the same)
@@ -92,11 +115,6 @@ int main() {
                                            {'0', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', '0'},
                                            {'0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0', '0'}};*/
 
-    char testExample[TEST_TASK_HEIGHT][TEST_TASK_WIDTH] = {{'0', '0', ' ', '0', '0', '0'},
-                                                           {' ', '0', ' ', ' ', ' ', '0'},
-                                                           {'0', '0', ' ', '0', '0', '0'},
-                                                           {'0', ' ', ' ', ' ', ' ', '0'},
-                                                           {'0', '0', '0', '0', '0', '0'}};
 
     char testAnswer[TEST_TASK_HEIGHT][TEST_TASK_WIDTH] = {{2,   1,   ' ', 3,   3,   3},
                                                           {' ', 1,   ' ', ' ', ' ', 0},
@@ -104,13 +122,16 @@ int main() {
                                                           {3,   ' ', ' ', ' ', ' ', 0},
                                                           {3,   2,   2,   2,   2,   0}};
     printInputNumbers(testExample);
-    Tile ***gameField = generateGameField(testExample);
+    gameField = generateGameField(testExample);
     setPossibleNumbersToTiles(gameField, test_iPossible, test_jPossible);
     printGameField(gameField);
-    setAnswerToTheGameField(gameField, testAnswer);
-    printGameField(gameField);
-    std::cout << std::boolalpha;
-    std::cout << "Is the answer correct?: " << static_cast<bool>(startCheck(gameField, 0, 0));
+//    setAnswerToTheGameField(gameField, testAnswer);
+//    printGameField(gameField);
+//    std::cout << std::boolalpha;
+//    std::cout << "Is the answer correct?: " << static_cast<bool>(startCheck(gameField, 0, 0));
+//    std::cout << std::endl;
+//    std::cout << "Is all fields visited?: " << static_cast<bool>(startCheck(gameField, 0, 0));
+    solve(gameField, 0, 0);
     return 0;
 }
 
@@ -177,7 +198,7 @@ Tile ***generateGameField(char field[TASK_HEIGHT][TASK_WIDTH]) {
                     if (gameField[i - 1][j] != nullptr && (i - 1) >= 0) {
                         tempTile->top = gameField[i - 1][j];
                     } else if ((i - 1) >= 0) {
-                        Tile *newTile = new Tile(i - 1, j);
+                        Tile *newTile = new Tile(j, i - 1);
                         tempTile->top = newTile;
                         gameField[i - 1][j] = newTile;
                     }
@@ -186,7 +207,7 @@ Tile ***generateGameField(char field[TASK_HEIGHT][TASK_WIDTH]) {
                     if (gameField[i][j + 1] != nullptr && (j + 1) < TASK_WIDTH) {
                         tempTile->right = gameField[i][j + 1];
                     } else if ((j + 1) < TASK_WIDTH) {
-                        Tile *newTile = new Tile(i, j + 1);
+                        Tile *newTile = new Tile(j, i + 1);
                         tempTile->right = newTile;
                         gameField[i][j + 1] = newTile;
                     }
@@ -195,7 +216,7 @@ Tile ***generateGameField(char field[TASK_HEIGHT][TASK_WIDTH]) {
                     if (gameField[i + 1][j] != nullptr && (i + 1) < TASK_HEIGHT) {
                         tempTile->bottom = gameField[i + 1][j];
                     } else if ((i + 1) < TASK_HEIGHT) {
-                        Tile *newTile = new Tile(i + 1, j);
+                        Tile *newTile = new Tile(j + 1, i);
                         tempTile->bottom = newTile;
                         gameField[i + 1][j] = newTile;
                     }
@@ -204,7 +225,7 @@ Tile ***generateGameField(char field[TASK_HEIGHT][TASK_WIDTH]) {
                     if (gameField[i][j - 1] != nullptr && (j - 1) >= 0) {
                         tempTile->left = gameField[i][j - 1];
                     } else if ((j - 1) >= 0) {
-                        Tile *newTile = new Tile(i, j - 1);
+                        Tile *newTile = new Tile(j, i - 1);
                         tempTile->left = newTile;
                         gameField[i][j - 1] = newTile;
                     }
@@ -304,3 +325,212 @@ bool startCheck(Tile ***gameField, int startX, int startY) {
     }
     return acc == 0;
 }
+
+void solveTileTestFailed(Tile *tile, int prevNumber);
+
+bool solve(Tile ***gameField, int startX, int startY) {
+    for (int i = 0; i < stash.size(); ++i) {
+        for (int j = 0; j < stash.at(i).size(); ++j) {
+            solveTileTestFailed(gameField[startX][startY], i);
+            isSecondHalfOfDominoSolve = true;
+            printGameField(gameField);
+            //bool isAnswer = startCheck(gameField, 0,0);
+            //std::cout << startCheck(gameField, isAnswer,0);
+            if (i == 3){
+                return true;
+            }
+            resetGameField(gameField);
+//            printGameField(gameField);
+        }
+    }
+    return true;
+}
+
+void checkIfFinished(Tile *tile) {
+    if (!tile->checked) {
+        tile->checked = true;
+        if (tile->visited) {
+            visitedTiles++;
+        }
+    }
+    if (tile->top != nullptr && !tile->top->checked) {
+        checkIfFinished(tile->top);
+    }
+    if (tile->right != nullptr && !tile->right->checked) {
+        checkIfFinished(tile->right);
+    }
+    if (tile->bottom != nullptr && !tile->bottom->checked) {
+        checkIfFinished(tile->bottom);
+    }
+    if (tile->left != nullptr && !tile->left->checked) {
+        checkIfFinished(tile->left);
+    }
+}
+
+bool isFinishedSolving(Tile ***gameField, int startX, int startY) {
+/*    visitedTiles = 0;
+    checkIfFinished(gameField[startX][startY]);
+    return visitedTiles == 20;*/
+    int quantity = 0;
+    for (int i = 0; i < stash.size(); ++i) {
+        for (int j = 0; j < stash.at(i).size(); ++j) {
+            quantity++;
+        }
+    }
+    return quantity == 0;
+}
+
+int howManyLeftInStash() {
+    int quantity = 0;
+    for (int i = 0; i < stash.size(); ++i) {
+        for (int j = 0; j < stash.at(i).size(); ++j) {
+            quantity++;
+        }
+    }
+    return quantity;
+}
+
+
+void solveTileTestFailed(Tile *tile, int prevNumber) {
+    isSecondHalfOfDominoSolve = !isSecondHalfOfDominoSolve;
+    //If we have first half of Domino, we need to check prevNumber with new one, if the second - find any corresponding number and remove domino
+    if (!isSecondHalfOfDominoSolve) {
+        //Bruteforce possible variants for the current tile
+        for (int i = 0; i < stash.size(); ++i) {
+            if (i == prevNumber) {
+                if (std::find(tile->possibleNumbers.begin(), tile->possibleNumbers.end(), i) !=
+                    tile->possibleNumbers.end() && !getAllSecondHalvesByFirst(i).empty()) {
+                    tile->value = i;
+                    tile->visited = true;
+                    printGameField(gameField);
+                    //Traverse to the next tile
+                    if (tile->top != nullptr && !tile->top->visited) {
+                        solveTileTestFailed(tile->top, tile->value);
+                    }
+                    if (tile->right != nullptr && !tile->right->visited) {
+                        solveTileTestFailed(tile->right, tile->value);
+                    }
+                    if (tile->bottom != nullptr && !tile->bottom->visited) {
+                        solveTileTestFailed(tile->bottom, tile->value);
+                    }
+                    if (tile->left != nullptr && !tile->left->visited) {
+                        solveTileTestFailed(tile->left, tile->value);
+                    }
+                    if (howManyLeftInStash() == 1 || howManyLeftInStash() == 0) {
+                        return;
+                    }
+
+                    if (!isFinishedSolving(gameField, 0, 0)) {
+                        tile->visited = false;
+                        tile->value = -1;
+                        printGameField(gameField);
+                        continue;
+                    }
+                }
+            } else {
+                continue;
+            }
+        }
+        //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+    } else {
+        //Bruteforce possible variants for the current tile
+        std::vector<int> leftHalves = getAllSecondHalvesByFirst(prevNumber);
+
+        //Intersect left with possible, then for loop is !empty
+        std::vector<int> variantsForTile = intersection(tile->possibleNumbers, leftHalves);
+        if (!variantsForTile.empty()) {
+            for (int i = 0; i < variantsForTile.size(); ++i) {
+                tile->value = variantsForTile.at(i);
+                tile->visited = true;
+                int firstHalfDeleted = prevNumber;
+                int secondHalfDeleted = variantsForTile.at(i);
+                printGameField(gameField);
+                removeDominoFromStash(firstHalfDeleted, secondHalfDeleted);
+
+                //Traverse to the next tile
+                if (tile->top != nullptr && !tile->top->visited) {
+                    solveTileTestFailed(tile->top, tile->value);
+                }
+                if (tile->right != nullptr && !tile->right->visited) {
+                    solveTileTestFailed(tile->right, tile->value);
+                }
+                if (tile->bottom != nullptr && !tile->bottom->visited) {
+                    solveTileTestFailed(tile->bottom, tile->value);
+                }
+                if (tile->left != nullptr && !tile->left->visited) {
+                    solveTileTestFailed(tile->left, tile->value);
+                }
+                if (howManyLeftInStash() == 1 || howManyLeftInStash() == 0) {
+                    return;
+                }
+
+                if (!isFinishedSolving(gameField, 0, 0)) {
+                    tile->visited = false;
+                    //tile->value = -1;
+                    returnDominoToStash(firstHalfDeleted, secondHalfDeleted);
+                    printGameField(gameField);
+                    continue;
+                }
+
+            }
+            //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+        }
+    }
+    isSecondHalfOfDominoSolve = !isSecondHalfOfDominoSolve;
+}
+
+std::vector<int> getAllSecondHalvesByFirst(int firstHalf) {
+    std::set<int> secondHalves(stash.at(firstHalf).begin(), stash.at(firstHalf).end());
+    for (int i = 0; i < stash.size(); ++i) {
+        for (int j = 0; j < stash.at(i).size(); ++j) {
+            if (stash.at(i).at(j) == firstHalf) {
+                if (secondHalves.find(stash.at(i).at(j)) == secondHalves.end()) {
+                    secondHalves.insert(i);
+                }
+            }
+        }
+    }
+    std::vector<int> v;
+    std::copy(secondHalves.begin(), secondHalves.end(), std::back_inserter(v));
+    return v;
+}
+
+int getPositionOfElement(std::vector<int> v, int el) {
+    return static_cast<int>(std::find(v.begin(), v.end(), el) - v.begin());
+}
+
+bool removeDominoFromStash(int prevNumber, int currNum) {
+    if (currNum > prevNumber) {
+        stash.at(currNum).erase(stash.at(currNum).begin() + getPositionOfElement(stash.at(currNum), prevNumber));
+    } else if (currNum == prevNumber) {
+        stash.at(currNum).erase(stash.at(currNum).begin() + getPositionOfElement(stash.at(currNum), currNum));
+    } else if (currNum < prevNumber) {
+        stash.at(prevNumber).erase(stash.at(prevNumber).begin() + getPositionOfElement(stash.at(prevNumber), currNum));
+    }
+}
+
+void returnDominoToStash(int prevNumber, int currNum) {
+    if (currNum > prevNumber) {
+        stash.at(currNum).push_back(prevNumber);
+        std::sort(stash.at(currNum).begin(), stash.at(currNum).end());
+    } else if (currNum == prevNumber) {
+        stash.at(currNum).push_back(currNum);
+        std::sort(stash.at(currNum).begin(), stash.at(currNum).end());
+    } else if (currNum < prevNumber) {
+        stash.at(prevNumber).push_back(currNum);
+        std::sort(stash.at(prevNumber).begin(), stash.at(prevNumber).end());
+    }
+
+}
+
+void resetGameField(Tile ***gameField) {
+    for (int i = 0; i < TEST_TASK_HEIGHT; ++i) {
+        for (int j = 0; j < TEST_TASK_WIDTH; ++j) {
+            if (testExample[i][j] == '0') {
+                gameField[i][j]->value = -1;
+                gameField[i][j]->checked = false;
+            }
+        }
+    }
+}
+
