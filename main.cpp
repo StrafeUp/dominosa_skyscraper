@@ -46,10 +46,14 @@ std::vector<int> getAllSecondHalvesByFirst(int firstHalf);
 
 int getPositionOfElement(std::vector<int> v, int el);
 
-bool removeDominoFromStash(int prevNumber, int currNum);
+void removeDominoFromStash(int prevNumber, int currNum);
 
 void returnDominoToStash(int prevNumber, int currNum);
 
+void startSolvingNew(Tile ***gameField, int startX, int startY);
+
+void solveFirstHalfFinal(Tile *tile, int prevNumber);
+void solveSecondHalfFinal(Tile *tile, int prevNumber);
 int main() {
 
     std::vector<std::string> stringStash = std::vector<std::string>();
@@ -132,6 +136,7 @@ int main() {
 //    std::cout << std::endl;
 //    std::cout << "Is all fields visited?: " << static_cast<bool>(startCheck(gameField, 0, 0));
     solve(gameField, 0, 0);
+//    startSolvingNew(gameField, 0, 0);
     return 0;
 }
 
@@ -328,17 +333,19 @@ bool startCheck(Tile ***gameField, int startX, int startY) {
 
 void solveTileTestFailed(Tile *tile, int prevNumber);
 
+void solveFirstHalf(Tile *tile, int prevNumber, int firstHalfDeleted, bool isDeleted);
+
 bool solve(Tile ***gameField, int startX, int startY) {
     for (int i = 0; i < stash.size(); ++i) {
         for (int j = 0; j < stash.at(i).size(); ++j) {
-            solveTileTestFailed(gameField[startX][startY], i);
+            solveFirstHalfFinal(gameField[startX][startY], i);
             isSecondHalfOfDominoSolve = true;
-            printGameField(gameField);
+            //printGameField(gameField);
             //bool isAnswer = startCheck(gameField, 0,0);
             //std::cout << startCheck(gameField, isAnswer,0);
-            if (i == 3){
-                return true;
-            }
+//            if (i == 3) {
+//                return true;
+//            }
             resetGameField(gameField);
 //            printGameField(gameField);
         }
@@ -390,6 +397,211 @@ int howManyLeftInStash() {
     return quantity;
 }
 
+void startSolvingNew(Tile ***gameField, int startX, int startY) {
+    for (int i = 0; i < stash.size(); ++i) {
+        for (int j = 0; j < stash.at(i).size(); ++j) {
+            solveFirstHalf(gameField[startX][startY], i, i, false);
+            printGameField(gameField);
+            //bool isAnswer = startCheck(gameField, 0,0);
+            //std::cout << startCheck(gameField, isAnswer,0);
+
+            resetGameField(gameField);
+//            printGameField(gameField);
+        }
+    }
+}
+
+void solveSecondHalf(Tile *tile, int prevNumber);
+
+bool isPossible(std::vector<int> possibleNumbers, int number) {
+    return std::find(possibleNumbers.begin(), possibleNumbers.end(), number) != possibleNumbers.end();
+}
+
+void solveFirstHalf(Tile *tile, int prevNumber, int firstHalfDeleted, bool isDeleted) {
+    //Bruteforce possible variants for the current tile
+    for (int i = 0; i < stash.size(); ++i) {
+        if (i == prevNumber) {
+            if (isPossible(tile->possibleNumbers, i) && !getAllSecondHalvesByFirst(i).empty()) {
+                tile->value = i;
+                tile->visited = true;
+                printGameField(gameField);
+
+                //Traverse to the next tile
+                if (tile->top != nullptr && !tile->top->visited) {
+                    solveSecondHalf(tile->top, tile->value);
+                }
+                if (tile->right != nullptr && !tile->right->visited) {
+                    solveSecondHalf(tile->right, tile->value);
+                }
+                if (tile->bottom != nullptr && !tile->bottom->visited) {
+                    solveSecondHalf(tile->bottom, tile->value);
+                }
+                if (tile->left != nullptr && !tile->left->visited) {
+                    solveSecondHalf(tile->left, tile->value);
+                }
+            }
+        } else {
+            continue;
+        }
+    }
+    if (howManyLeftInStash() == 0) {
+        return;
+    }
+    // If we have ran out of variants for the tile value, and the game is not over
+    tile->visited = false;
+    //tile->value = -1;
+    std::cout << "Returning at %i: %i" << tile->xCoord << tile->yCoord << std::endl;
+    printGameField(gameField);
+    if (isDeleted) {
+        returnDominoToStash(firstHalfDeleted, prevNumber);
+    }
+}
+
+void solveFirstHalfFinal(Tile *tile, int prevNumber) {
+    //Bruteforce possible variants for the current tile
+    for (int i = 0; i < stash.size(); ++i) {
+        if (i == prevNumber) {
+            if (std::find(tile->possibleNumbers.begin(), tile->possibleNumbers.end(), i) !=
+                tile->possibleNumbers.end() && !getAllSecondHalvesByFirst(i).empty()) {
+                if (howManyLeftInStash() == 0) {
+                    return;
+                }
+                tile->value = i;
+                tile->visited = true;
+                printGameField(gameField);
+                //Traverse to the next tile
+                if (tile->top != nullptr && !tile->top->visited) {
+                    solveSecondHalfFinal(tile->top, tile->value);
+                }
+                if (tile->right != nullptr && !tile->right->visited) {
+                    solveSecondHalfFinal(tile->right, tile->value);
+                }
+                if (tile->bottom != nullptr && !tile->bottom->visited) {
+                    solveSecondHalfFinal(tile->bottom, tile->value);
+                }
+                if (tile->left != nullptr && !tile->left->visited) {
+                    solveSecondHalfFinal(tile->left, tile->value);
+                }
+
+                if (!isFinishedSolving(gameField, 0, 0)) {
+                    tile->visited = false;
+                    //tile->value = -1;
+                    printGameField(gameField);
+                    continue;
+                }
+            }
+        } else {
+            continue;
+        }
+    }
+    //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+    if (howManyLeftInStash() == 0) {
+        return;
+    }
+}
+
+void solveSecondHalfFinal(Tile *tile, int prevNumber) {
+    //Bruteforce possible variants for the current tile
+    std::vector<int> leftHalves = getAllSecondHalvesByFirst(prevNumber);
+
+    //Intersect left with possible, then for loop is !empty
+    std::vector<int> variantsForTile = intersection(tile->possibleNumbers, leftHalves);
+    if (!variantsForTile.empty()) {
+        for (int i = 0; i < variantsForTile.size(); ++i) {
+            if (howManyLeftInStash() == 0) {
+                return;
+            }
+            tile->value = variantsForTile.at(i);
+            tile->visited = true;
+            int firstHalfDeleted = prevNumber;
+            int secondHalfDeleted = variantsForTile.at(i);
+            printGameField(gameField);
+            removeDominoFromStash(firstHalfDeleted, secondHalfDeleted);
+
+            //Traverse to the next tile
+            if (tile->top != nullptr && !tile->top->visited) {
+                solveFirstHalfFinal(tile->top, tile->value);
+            }
+            if (tile->right != nullptr && !tile->right->visited) {
+                solveFirstHalfFinal(tile->right, tile->value);
+            }
+            if (tile->bottom != nullptr && !tile->bottom->visited) {
+                solveFirstHalfFinal(tile->bottom, tile->value);
+            }
+            if (tile->left != nullptr && !tile->left->visited) {
+                solveFirstHalfFinal(tile->left, tile->value);
+            }
+            if (howManyLeftInStash() == 1) {
+                return;
+            }
+
+            if (!isFinishedSolving(gameField, 0, 0)) {
+                tile->visited = false;
+                returnDominoToStash(firstHalfDeleted, secondHalfDeleted);
+                printGameField(gameField);
+                continue;
+            }
+
+        }
+        //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+    }
+    if (howManyLeftInStash() == 0) {
+        return;
+    }
+}
+
+void solveSecondHalf(Tile *tile, int prevNumber) {
+    if (howManyLeftInStash() == 0) {
+        return;
+    }
+    int firstHalfDeleted;
+    int secondHalfDeleted;
+    //Bruteforce possible variants for the current tile
+    std::vector<int> leftHalves = getAllSecondHalvesByFirst(prevNumber);
+
+    //Intersect left with possible, then for loop is !empty
+    std::vector<int> variantsForTile = intersection(tile->possibleNumbers, leftHalves);
+    if (!variantsForTile.empty()) {
+        for (int i = 0; i < variantsForTile.size(); ++i) {
+            tile->value = variantsForTile.at(i);
+            tile->visited = true;
+
+            firstHalfDeleted = prevNumber;
+            secondHalfDeleted = variantsForTile.at(i);
+
+            printGameField(gameField);
+
+            removeDominoFromStash(firstHalfDeleted, secondHalfDeleted);
+
+            //Traverse to the next tile
+            if (tile->top != nullptr && !tile->top->visited) {
+                solveFirstHalf(tile->top, tile->value, firstHalfDeleted, true);
+            }
+            if (tile->right != nullptr && !tile->right->visited) {
+                solveFirstHalf(tile->right, tile->value, firstHalfDeleted, true);
+            }
+            if (tile->bottom != nullptr && !tile->bottom->visited) {
+                solveFirstHalf(tile->bottom, tile->value, firstHalfDeleted, true);
+            }
+            if (tile->left != nullptr && !tile->left->visited) {
+                solveFirstHalf(tile->left, tile->value, firstHalfDeleted, true);
+            }
+        }
+        if (howManyLeftInStash() != 0) {
+            tile->visited = false;
+            return;
+        }
+
+    } else {
+        //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+        tile->visited = false;
+        tile->value = -1;
+        std::cout << "Returning at %i: %i" << tile->xCoord << tile->yCoord << std::endl;
+        printGameField(gameField);
+        return;
+    }
+}
+
 
 void solveTileTestFailed(Tile *tile, int prevNumber) {
     isSecondHalfOfDominoSolve = !isSecondHalfOfDominoSolve;
@@ -432,6 +644,9 @@ void solveTileTestFailed(Tile *tile, int prevNumber) {
             }
         }
         //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+        if (howManyLeftInStash() == 0) {
+            return;
+        }
     } else {
         //Bruteforce possible variants for the current tile
         std::vector<int> leftHalves = getAllSecondHalvesByFirst(prevNumber);
@@ -474,6 +689,9 @@ void solveTileTestFailed(Tile *tile, int prevNumber) {
 
             }
             //If there are no dominos left to place and is not solved yet - return dominos and try another combo
+            if (howManyLeftInStash() == 0) {
+                return;
+            }
         }
     }
     isSecondHalfOfDominoSolve = !isSecondHalfOfDominoSolve;
@@ -499,7 +717,7 @@ int getPositionOfElement(std::vector<int> v, int el) {
     return static_cast<int>(std::find(v.begin(), v.end(), el) - v.begin());
 }
 
-bool removeDominoFromStash(int prevNumber, int currNum) {
+void removeDominoFromStash(int prevNumber, int currNum) {
     if (currNum > prevNumber) {
         stash.at(currNum).erase(stash.at(currNum).begin() + getPositionOfElement(stash.at(currNum), prevNumber));
     } else if (currNum == prevNumber) {
@@ -529,6 +747,7 @@ void resetGameField(Tile ***gameField) {
             if (testExample[i][j] == '0') {
                 gameField[i][j]->value = -1;
                 gameField[i][j]->checked = false;
+                gameField[i][j]->visited = false;
             }
         }
     }
