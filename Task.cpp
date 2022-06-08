@@ -112,8 +112,8 @@ Tile ***Task::generateGameField(char field[TASK_HEIGHT][TASK_WIDTH]) {
 
 std::vector<int> Task::getAllSecondHalvesByFirst(int firstHalf) {
     std::set<int> secondHalves(stash.at(firstHalf).begin(), stash.at(firstHalf).end());
-    for (int i = 0; i < stash.size(); ++i) {
-        for (int j = 0; j < stash.at(i).size(); ++j) {
+    for (int i = 0; i < int(stash.size()); ++i) {
+        for (int j = 0; j < int(stash.at(i).size()); ++j) {
             if (stash.at(i).at(j) == firstHalf) {
                 if (secondHalves.find(stash.at(i).at(j)) == secondHalves.end()) {
                     secondHalves.insert(i);
@@ -176,8 +176,8 @@ void Task::resetGameField() {
 
 int Task::howManyLeftInStash() {
     int quantity = 0;
-    for (int i = 0; i < stash.size(); ++i) {
-        for (int j = 0; j < stash.at(i).size(); ++j) {
+    for (int i = 0; i < int(stash.size()); ++i) {
+        for (int j = 0; j < int(stash.at(i).size()); ++j) {
             quantity++;
         }
     }
@@ -186,7 +186,7 @@ int Task::howManyLeftInStash() {
 
 void Task::solveFirstHalfFinal(Tile *tile, int prevNumber) {
     //Bruteforce possible variants for the current tile
-    for (int i = 0; i < stash.size(); ++i) {
+    for (int i = 0; i < int(stash.size()); ++i) {
         if (i == prevNumber) {
             if (vectorContains(tile->possibleNumbers, i) && !getAllSecondHalvesByFirst(i).empty()) {
                 if (howManyLeftInStash() == 0) {
@@ -231,7 +231,7 @@ void Task::solveSecondHalfFinal(Tile *tile, int prevNumber) {
     //Intersect left with possible, then for loop is !empty
     std::vector<int> variantsForTile = vectorIntersection(tile->possibleNumbers, leftHalves);
     if (!variantsForTile.empty()) {
-        for (int i = 0; i < variantsForTile.size(); ++i) {
+        for (int i = 0; i < int(variantsForTile.size()); ++i) {
             if (howManyLeftInStash() == 0) {
                 return;
             }
